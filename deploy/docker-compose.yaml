@@ -9,4 +9,11 @@ services:
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password@1234
-      POSTGRES_DB: pg_db
+      POSTGRES_DB: postgres
+  http-service:
+    image: kotzakhar/golang_pet:latest
+    container_name: http-container
+    ports:
+      - 8080:80/tcp
+    environment:
+      POSTGRES_CONNECTION_STRING: "postgresql://admin:password@1234@postgres-service:5432/postgres"
