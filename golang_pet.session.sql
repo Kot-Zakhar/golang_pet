@@ -1,7 +1,0 @@
-CREATE TABLE Users (
-  Id INT NOT NULL PRIMARY KEY,
-  Name VARCHAR,
-  Login VARCHAR,
-  Password VARCHAR,
-  CreatedAt TIMESTAMP NOT NULL
-)
