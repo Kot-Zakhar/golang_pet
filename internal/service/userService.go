@@ -4,49 +4,48 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kot-zakhar/golang_pet/internal/mapper"
+	"github.com/kot-zakhar/golang_pet/internal/handler"
 	"github.com/kot-zakhar/golang_pet/internal/model"
-	"github.com/kot-zakhar/golang_pet/internal/repository"
-	"github.com/kot-zakhar/golang_pet/internal/viewModel"
 )
 
-type UserService struct {
-	userRepo *repository.UserRepository
+type IUserRepository interface {
+	GetAll(context.Context) ([]model.User, error)
+	GetById(context.Context, uint64) (model.User, error)
+	Insert(context.Context, model.User) error
+	Update(context.Context, uint64, model.User) error
+	Delete(context.Context, uint64) error
 }
 
-func NewUserService(userRepo *repository.UserRepository) *UserService {
+type UserService struct {
+	userRepo IUserRepository
+}
+
+func NewUserService(userRepo IUserRepository) handler.IUserService {
 	return &UserService{
 		userRepo: userRepo,
 	}
 }
 
-func (service *UserService) GetAll(context context.Context) (*[]viewModel.UserViewModel, error) {
-	mappedUsers := make([]viewModel.UserViewModel, 0)
+func (service *UserService) GetAll(context context.Context) ([]model.User, error) {
 	users, err := service.userRepo.GetAll(context)
 
 	if err != nil {
 		return nil, fmt.Errorf("UserService:GetAll:service.userRepo.GetAll - %w", err)
 	}
 
-	for _, user := range *users {
-		mappedUsers = append(mappedUsers, mapper.MapToViewModel(&user))
-	}
-
-	return &mappedUsers, nil
+	return users, nil
 }
 
-func (service *UserService) GetById(context context.Context, id uint64) (*viewModel.UserViewModel, error) {
+func (service *UserService) GetById(context context.Context, id uint64) (model.User, error) {
 	user, err := service.userRepo.GetById(context, id)
 	if err != nil {
-		return nil, fmt.Errorf("UserService:GetAll:service.userRepo.GetById - %w", err)
+		return user, fmt.Errorf("UserService:GetAll:service.userRepo.GetById - %w", err)
 	}
 
-	mappedUser := mapper.MapToViewModel(user)
-
-	return &mappedUser, nil
+	return user, nil
 }
 
-func (service *UserService) RegisterUser(context context.Context, createUserModel *viewModel.CreateOrUpdateUserViewModel) error {
+func (service *UserService) RegisterUser(context context.Context, registeredUser model.User) error {
 	// existingUser, err := service.userRepo.GetByLogin(context, createUserModel.Login)
 	// if err != nil {
 	// 	return fmt.Errorf("UserService:RegisterUser:service.userRepo.GetByLogin - %w", err)
@@ -56,14 +55,7 @@ func (service *UserService) RegisterUser(context context.Context, createUserMode
 	// 	return fmt.Errorf("User was already registered.")
 	// }
 
-	registeredUser := model.User{
-		Name:     createUserModel.Name,
-		Login:    createUserModel.Login,
-		Password: createUserModel.Password,
-		Email:    createUserModel.Email,
-	}
-
-	_, err := service.userRepo.Insert(context, &registeredUser)
+	err := service.userRepo.Insert(context, registeredUser)
 
 	if err != nil {
 		return fmt.Errorf("UserService:RegisterUser:service.userRepo.Insert - %w", err)
@@ -72,14 +64,10 @@ func (service *UserService) RegisterUser(context context.Context, createUserMode
 	return nil
 }
 
-func (service *UserService) UpdateUser(context context.Context, id uint64, updateUserModel *viewModel.CreateOrUpdateUserViewModel) error {
+func (service *UserService) UpdateUser(context context.Context, id uint64, updateUserModel model.User) error {
 	existingUser, err := service.userRepo.GetById(context, id)
 	if err != nil {
 		return fmt.Errorf("UserService:UpdateUser:service.userRepo.GetById - %w", err)
-	}
-
-	if existingUser == nil {
-		return fmt.Errorf("User was not found.")
 	}
 
 	existingUser.Login = updateUserModel.Login
@@ -97,13 +85,9 @@ func (service *UserService) UpdateUser(context context.Context, id uint64, updat
 }
 
 func (service *UserService) DeleteUser(context context.Context, id uint64) error {
-	existingUser, err := service.userRepo.GetById(context, id)
+	_, err := service.userRepo.GetById(context, id)
 	if err != nil {
 		return fmt.Errorf("UserService:UpdateUser:service.userRepo.GetById - %w", err)
-	}
-
-	if existingUser == nil {
-		return fmt.Errorf("User was not found.")
 	}
 
 	err = service.userRepo.Delete(context, id)

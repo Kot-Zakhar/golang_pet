@@ -13,7 +13,7 @@ import (
 
 type DiContainer struct {
 	// handlers
-	UserHandler *handler.UserHandler
+	UserHandler handler.UserHandler
 }
 
 var DI DiContainer

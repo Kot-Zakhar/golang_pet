@@ -9,23 +9,20 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/kot-zakhar/golang_pet/internal/model"
+	"github.com/kot-zakhar/golang_pet/internal/service"
 )
-
-type IUserRepository interface {
-	IRepository[model.User, uint64]
-}
 
 type UserRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewUserRepository(db *pgxpool.Pool) *UserRepository {
+func NewUserRepository(db *pgxpool.Pool) service.IUserRepository {
 	return &UserRepository{
 		db: db,
 	}
 }
 
-func (repo *UserRepository) GetAll(context context.Context) (*[]model.User, error) {
+func (repo *UserRepository) GetAll(context context.Context) ([]model.User, error) {
 	query := `SELECT id, name, login, email, password, createdAt FROM users`
 	rows, err := repo.db.Query(context, query)
 	if err != nil {
@@ -43,11 +40,11 @@ func (repo *UserRepository) GetAll(context context.Context) (*[]model.User, erro
 	if err != nil {
 		return nil, fmt.Errorf("UserRepository:GetAll:rows.Scan - %w", err)
 	} else {
-		return &users, nil
+		return users, nil
 	}
 }
 
-func (repo *UserRepository) GetById(context context.Context, id uint64) (*model.User, error) {
+func (repo *UserRepository) GetById(context context.Context, id uint64) (model.User, error) {
 	query := `
 		SELECT id, name, login, email, password, createdAt
 		FROM users
@@ -59,15 +56,15 @@ func (repo *UserRepository) GetById(context context.Context, id uint64) (*model.
 	err := row.Scan(&user.Id, &user.Name, &user.Login, &user.Email, &user.Password, &user.CreatedAt)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
+		return user, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("UserRepository:GetById:row.Scan - %w", err)
+		return user, fmt.Errorf("UserRepository:GetById:row.Scan - %w", err)
 	} else {
-		return &user, nil
+		return user, nil
 	}
 }
 
-func (repo *UserRepository) GetByLogin(context context.Context, login string) (*model.User, error) {
+func (repo *UserRepository) GetByLogin(context context.Context, login string) (model.User, error) {
 	query := `
 		SELECT login
 		FROM users
@@ -79,15 +76,15 @@ func (repo *UserRepository) GetByLogin(context context.Context, login string) (*
 	err := row.Scan(&user.Id, &user.Name, &user.Login, &user.Password, &user.CreatedAt)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
+		return user, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("UserRepository:GetByLogin:row.Scan - %w", err)
+		return user, fmt.Errorf("UserRepository:GetByLogin:row.Scan - %w", err)
 	} else {
-		return &user, nil
+		return user, nil
 	}
 }
 
-func (repo *UserRepository) Insert(context context.Context, user *model.User) (uint64, error) {
+func (repo *UserRepository) Insert(context context.Context, user model.User) error {
 	query := `
 		INSERT INTO users
 		(name, login, email, password)
@@ -96,13 +93,13 @@ func (repo *UserRepository) Insert(context context.Context, user *model.User) (u
 	err := repo.db.QueryRow(context, query, user.Name, user.Login, user.Email, user.Password).Scan(&user.Id)
 
 	if err != nil {
-		return 0, fmt.Errorf("UserRepository:Insert:row.Scan - %w", err)
+		return fmt.Errorf("UserRepository:Insert:row.Scan - %w", err)
 	} else {
-		return user.Id, nil
+		return nil
 	}
 }
 
-func (repo *UserRepository) Update(context context.Context, id uint64, user *model.User) error {
+func (repo *UserRepository) Update(context context.Context, id uint64, user model.User) error {
 	query := `
 		UPDATE users
 		SET
