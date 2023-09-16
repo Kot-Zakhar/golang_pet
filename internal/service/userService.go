@@ -15,19 +15,16 @@ type IUserRepository interface {
 	Delete(context.Context, uint64) error
 }
 
-type ICryptoService interface {
+type IPasswordHasherService interface {
 	HashPassword(password string) (hash, salt []byte)
 }
 
 type UserService struct {
 	userRepo      IUserRepository
-	cryptoService ICryptoService
+	cryptoService IPasswordHasherService
 }
 
-// Q: should Factory return interface or concrete class?
-// potential A: Class, because interfaces are partial
-// Q: how to state inside of current file, that the class should implement a list of interfaces?
-func NewUserService(userRepo IUserRepository, cryptoService ICryptoService) UserService {
+func NewUserService(userRepo IUserRepository, cryptoService IPasswordHasherService) UserService {
 	return UserService{userRepo, cryptoService}
 }
 

@@ -14,6 +14,7 @@ import (
 type DiContainer struct {
 	// handlers
 	UserHandler handler.UserHandler
+	AuthHandler handler.AuthHandler
 }
 
 var DI DiContainer
@@ -24,11 +25,19 @@ func InitializeDI(config *config.AppConfig) {
 		log.Fatal(err.Error())
 	}
 
-	cryptoService := service.NewCryptoService(config)
+	passwordService := service.NewPasswordService(config)
+	jwtService := service.NewJwtService(config)
 
 	userRepository := repository.NewUserRepository(dbConnection)
-	userService := service.NewUserService(&userRepository, &cryptoService)
+	userService := service.NewUserService(&userRepository, &passwordService)
 	userHandler := handler.NewUserHandler(&userService)
 
-	DI = DiContainer{userHandler}
+	authRepository := repository.NewAuthRepository(dbConnection)
+	authService := service.NewAuthService(config, &authRepository, &userRepository, &passwordService, &jwtService)
+	authHandler := handler.NewAuthHandler(config, &authService)
+
+	DI = DiContainer{
+		userHandler,
+		authHandler,
+	}
 }

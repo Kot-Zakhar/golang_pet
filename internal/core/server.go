@@ -30,13 +30,20 @@ func SetUpServer(adress string) {
 	})
 
 	userHandler := DI.UserHandler
-	userBaseRoute := "/users"
+	userBaseRoute := "/api/users"
 
 	e.GET(userBaseRoute, userHandler.GetAllUsers)
 	e.POST(userBaseRoute, userHandler.CreateUser)
 	e.GET(userBaseRoute+"/:id", userHandler.GetUserById)
 	e.PUT(userBaseRoute+"/:id", userHandler.UpdateUser)
 	e.DELETE(userBaseRoute+"/:id", userHandler.DeleteUser)
+
+	authHandler := DI.AuthHandler
+	authBaseRoute := "/api/auth"
+
+	e.POST(authBaseRoute+"/sign-in", authHandler.SignIn)
+	e.POST(authBaseRoute+"/sign-out", authHandler.SignOut)
+	e.POST(authBaseRoute+"/refresh-tokens", authHandler.RefreshTokens)
 
 	e.Logger.Fatal(e.Start(adress))
 }

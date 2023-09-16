@@ -63,13 +63,45 @@ func (repo *UserRepository) GetById(context context.Context, id uint64) (model.U
 	}
 }
 
+func (repo *UserRepository) GetByLogin(context context.Context, login string) (user model.User, err error) {
+	query := `
+		SELECT id, name, login, email, passwordHash, salt, createdAt
+		FROM users
+		WHERE login = $1`
+	row := repo.db.QueryRow(context, query, login)
+
+	err = row.Scan(
+		&user.Id,
+		&user.Name,
+		&user.Login,
+		&user.Email,
+		&user.PasswordHash,
+		&user.Salt,
+		&user.CreatedAt,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return user, nil
+	} else if err != nil {
+		return user, fmt.Errorf("UserRepository:GetById:row.Scan - %w", err)
+	} else {
+		return user, nil
+	}
+}
+
 func (repo *UserRepository) Insert(context context.Context, user model.User) error {
 	query := `
 		INSERT INTO users
 		(name, login, email, passwordHash, salt)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id`
-	err := repo.db.QueryRow(context, query, user.Name, user.Login, user.Email, user.PasswordHash, user.Salt).Scan(&user.Id)
+	err := repo.db.QueryRow(context, query,
+		user.Name,
+		user.Login,
+		user.Email,
+		user.PasswordHash,
+		user.Salt,
+	).Scan(&user.Id)
 
 	if err != nil {
 		return fmt.Errorf("UserRepository:Insert:row.Scan - %w", err)
@@ -89,7 +121,14 @@ func (repo *UserRepository) Update(context context.Context, id uint64, user mode
 			salt = $5
 		WHERE
 			id = $6`
-	_, err := repo.db.Exec(context, query, user.Name, user.Login, user.Email, user.PasswordHash, user.Salt, id)
+	_, err := repo.db.Exec(context, query,
+		user.Name,
+		user.Login,
+		user.Email,
+		user.PasswordHash,
+		user.Salt,
+		id,
+	)
 
 	if err != nil {
 		return fmt.Errorf("UserRepository:Insert:row.Scan - %w", err)
@@ -101,8 +140,7 @@ func (repo *UserRepository) Update(context context.Context, id uint64, user mode
 func (repo *UserRepository) Delete(context context.Context, id uint64) error {
 	query := `
 		DELETE FROM users
-		where id = $1
-	`
+		where id = $1`
 
 	_, err := repo.db.Exec(context, query, id)
 

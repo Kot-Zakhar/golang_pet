@@ -9,6 +9,9 @@ import (
 type AppConfig struct {
 	PgxConnectionString string `env:"POSTGRES_CONNECTION_STRING"`
 	PasswordPepper      string `env:"PASSWORD_PEPPER"`
+	AccessTokenRoute    string `env:"ACCESS_TOKEN_ROUTE"`
+	Domain              string `env:"DOMAIN"`
+	PrivateKey          string `env:"PRIVATE_KEY"`
 }
 
 func GetConfig() *AppConfig {

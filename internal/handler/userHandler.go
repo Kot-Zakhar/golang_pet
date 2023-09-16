@@ -14,6 +14,7 @@ import (
 type IUserService interface {
 	GetAll(context.Context) ([]model.User, error)
 	GetById(context.Context, uint64) (model.User, error)
+	// TODO: I don't like the fact, that handler has a reference to a service package
 	RegisterUser(context.Context, service.UserRegistrationInfo) error
 	UpdateUser(context.Context, uint64, service.UserRegistrationInfo) error
 	DeleteUser(context.Context, uint64) error
@@ -29,6 +30,8 @@ func NewUserHandler(service IUserService) UserHandler {
 	}
 }
 
+// Where to store ViewModels?
+
 type CreateOrUpdateUserViewModel struct {
 	Name     string `json:"name"`
 	Login    string `json:"login"`
@@ -37,7 +40,7 @@ type CreateOrUpdateUserViewModel struct {
 }
 
 type UserViewModel struct {
-	Id    uint64 `json:"id" validate:"required"`
+	Id    int    `json:"id" validate:"required"`
 	Name  string `json:"name" validate:"required"`
 	Login string `json:"login" validate:"required"`
 	Email string `json:"email" validate:"required,email"`
@@ -65,6 +68,7 @@ func (handler *UserHandler) GetUserById(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
+	// TODO: return 404 when user not found?
 	user, err := handler.userService.GetById(c.Request().Context(), id)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
