@@ -24,11 +24,11 @@ func InitializeDI(config *config.AppConfig) {
 		log.Fatal(err.Error())
 	}
 
-	userRepository := repository.NewUserRepository(dbConnection)
-	userService := service.NewUserService(userRepository)
-	userHandler := handler.NewUserHandler(userService)
+	cryptoService := service.NewCryptoService(config)
 
-	DI = DiContainer{
-		UserHandler: userHandler,
-	}
+	userRepository := repository.NewUserRepository(dbConnection)
+	userService := service.NewUserService(&userRepository, &cryptoService)
+	userHandler := handler.NewUserHandler(&userService)
+
+	DI = DiContainer{userHandler}
 }

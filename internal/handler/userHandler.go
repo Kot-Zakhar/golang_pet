@@ -8,13 +8,14 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/kot-zakhar/golang_pet/internal/model"
+	"github.com/kot-zakhar/golang_pet/internal/service"
 )
 
 type IUserService interface {
 	GetAll(context.Context) ([]model.User, error)
 	GetById(context.Context, uint64) (model.User, error)
-	RegisterUser(context.Context, model.User) error
-	UpdateUser(context.Context, uint64, model.User) error
+	RegisterUser(context.Context, service.UserRegistrationInfo) error
+	UpdateUser(context.Context, uint64, service.UserRegistrationInfo) error
 	DeleteUser(context.Context, uint64) error
 }
 
@@ -49,7 +50,13 @@ func (handler *UserHandler) GetAllUsers(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, users)
+	userViewModels := make([]UserViewModel, 0)
+
+	for _, u := range users {
+		userViewModels = append(userViewModels, modelToViewModel(u))
+	}
+
+	return c.JSON(http.StatusOK, userViewModels)
 }
 
 func (handler *UserHandler) GetUserById(c echo.Context) error {
@@ -63,18 +70,20 @@ func (handler *UserHandler) GetUserById(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, user)
+	userViewModel := modelToViewModel(user)
+
+	return c.JSON(http.StatusOK, userViewModel)
 }
 
 func (handler *UserHandler) CreateUser(c echo.Context) error {
 	// validate user record
 	var userModel CreateOrUpdateUserViewModel
 
-	if err := c.Bind(userModel); err != nil {
+	if err := c.Bind(&userModel); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	if err := c.Validate(userModel); err != nil {
+	if err := c.Validate(&userModel); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
@@ -94,11 +103,11 @@ func (handler *UserHandler) UpdateUser(c echo.Context) error {
 
 	var userModel CreateOrUpdateUserViewModel
 
-	if err = c.Bind(userModel); err != nil {
+	if err = c.Bind(&userModel); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	if err = c.Validate(userModel); err != nil {
+	if err = c.Validate(&userModel); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
@@ -124,8 +133,8 @@ func (handler *UserHandler) DeleteUser(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-func viewModelToDto(viewModel CreateOrUpdateUserViewModel) model.User {
-	return model.User{
+func viewModelToDto(viewModel CreateOrUpdateUserViewModel) service.UserRegistrationInfo {
+	return service.UserRegistrationInfo{
 		Name:     viewModel.Name,
 		Login:    viewModel.Login,
 		Email:    viewModel.Email,
@@ -133,7 +142,7 @@ func viewModelToDto(viewModel CreateOrUpdateUserViewModel) model.User {
 	}
 }
 
-func dtoToViewModel(user model.User) UserViewModel {
+func modelToViewModel(user model.User) UserViewModel {
 	return UserViewModel{
 		Id:    user.Id,
 		Name:  user.Name,

@@ -8,6 +8,7 @@ import (
 
 type AppConfig struct {
 	PgxConnectionString string `env:"POSTGRES_CONNECTION_STRING"`
+	PasswordPepper      string `env:"PASSWORD_PEPPER"`
 }
 
 func GetConfig() *AppConfig {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kot-zakhar/golang_pet/internal/handler"
 	"github.com/kot-zakhar/golang_pet/internal/model"
 )
 
@@ -16,14 +15,20 @@ type IUserRepository interface {
 	Delete(context.Context, uint64) error
 }
 
-type UserService struct {
-	userRepo IUserRepository
+type ICryptoService interface {
+	HashPassword(password string) (hash, salt []byte)
 }
 
-func NewUserService(userRepo IUserRepository) handler.IUserService {
-	return &UserService{
-		userRepo: userRepo,
-	}
+type UserService struct {
+	userRepo      IUserRepository
+	cryptoService ICryptoService
+}
+
+// Q: should Factory return interface or concrete class?
+// potential A: Class, because interfaces are partial
+// Q: how to state inside of current file, that the class should implement a list of interfaces?
+func NewUserService(userRepo IUserRepository, cryptoService ICryptoService) UserService {
+	return UserService{userRepo, cryptoService}
 }
 
 func (service *UserService) GetAll(context context.Context) ([]model.User, error) {
@@ -45,17 +50,25 @@ func (service *UserService) GetById(context context.Context, id uint64) (model.U
 	return user, nil
 }
 
-func (service *UserService) RegisterUser(context context.Context, registeredUser model.User) error {
-	// existingUser, err := service.userRepo.GetByLogin(context, createUserModel.Login)
-	// if err != nil {
-	// 	return fmt.Errorf("UserService:RegisterUser:service.userRepo.GetByLogin - %w", err)
-	// }
+type UserRegistrationInfo struct {
+	Name     string
+	Login    string
+	Email    string
+	Password string
+}
 
-	// if existingUser != nil {
-	// 	return fmt.Errorf("User was already registered.")
-	// }
+func (service *UserService) RegisterUser(context context.Context, registrationInfo UserRegistrationInfo) error {
+	hash, salt := service.cryptoService.HashPassword(registrationInfo.Password)
 
-	err := service.userRepo.Insert(context, registeredUser)
+	user := model.User{
+		Name:         registrationInfo.Name,
+		Login:        registrationInfo.Login,
+		PasswordHash: hash,
+		Salt:         salt,
+		Email:        registrationInfo.Email,
+	}
+
+	err := service.userRepo.Insert(context, user)
 
 	if err != nil {
 		return fmt.Errorf("UserService:RegisterUser:service.userRepo.Insert - %w", err)
@@ -64,16 +77,20 @@ func (service *UserService) RegisterUser(context context.Context, registeredUser
 	return nil
 }
 
-func (service *UserService) UpdateUser(context context.Context, id uint64, updateUserModel model.User) error {
+func (service *UserService) UpdateUser(context context.Context, id uint64, updateUserModel UserRegistrationInfo) error {
 	existingUser, err := service.userRepo.GetById(context, id)
 	if err != nil {
 		return fmt.Errorf("UserService:UpdateUser:service.userRepo.GetById - %w", err)
 	}
 
+	// TODO: move password change to a separate endpoint/service_method
+	hash, salt := service.cryptoService.HashPassword(updateUserModel.Password)
+
 	existingUser.Login = updateUserModel.Login
 	existingUser.Email = updateUserModel.Email
 	existingUser.Name = updateUserModel.Name
-	existingUser.Password = updateUserModel.Password
+	existingUser.PasswordHash = hash
+	existingUser.Salt = salt
 
 	err = service.userRepo.Update(context, id, existingUser)
 

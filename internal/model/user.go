@@ -3,10 +3,11 @@ package model
 import "time"
 
 type User struct {
-	Id        uint64
-	Name      string
-	Login     string
-	Password  string
-	Email     string
-	CreatedAt time.Time
+	Id           uint64
+	Name         string
+	Login        string
+	PasswordHash []byte
+	Salt         []byte
+	Email        string
+	CreatedAt    time.Time
 }
