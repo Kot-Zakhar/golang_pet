@@ -1,13 +1,18 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type UserSession struct {
 	Id           int
 	UserId       int
-	RefreshToken string
+	RefreshToken uuid.UUID
 	UserAgent    string
-	Fingerprint  string
-	ExpiresAt    time.Time
-	CreatedAt    time.Time
+	// TODO-Q: how do we actually check the validity of fingerprint
+	Fingerprint string
+	ExpiresAt   time.Time
+	CreatedAt   time.Time
 }

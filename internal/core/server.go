@@ -42,8 +42,8 @@ func SetUpServer(adress string) {
 	authBaseRoute := "/api/auth"
 
 	e.POST(authBaseRoute+"/sign-in", authHandler.SignIn)
-	e.POST(authBaseRoute+"/sign-out", authHandler.SignOut)
-	e.POST(authBaseRoute+"/refresh-tokens", authHandler.RefreshTokens)
+	e.POST(authBaseRoute+"/sign-out", authHandler.SignOut, DI.AuthMiddleware)
+	e.POST(authBaseRoute+"/refresh-tokens", authHandler.RefreshTokens, DI.AuthMiddleware)
 
 	e.Logger.Fatal(e.Start(adress))
 }

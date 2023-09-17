@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -22,7 +23,7 @@ func NewJwtService(config *config.AppConfig) JwtService {
 
 func (service *JwtService) CreateToken(user model.User, session model.UserSession) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		Subject:   fmt.Sprint(user.Id),
+		Subject:   strconv.Itoa(user.Id),
 		Issuer:    service.config.Domain,
 		Audience:  session.Fingerprint,
 		IssuedAt:  time.Now().Unix(),
@@ -38,7 +39,7 @@ func (service *JwtService) CreateToken(user model.User, session model.UserSessio
 	return signedToken, nil
 }
 
-func (service *JwtService) ValidateToken(tokenString string) error {
+func (service *JwtService) ValidateAndGetUserId(tokenString string) (userId string, err error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
@@ -47,17 +48,16 @@ func (service *JwtService) ValidateToken(tokenString string) error {
 		return []byte(service.config.PrivateKey), nil
 	})
 
-	return nil
+	if err != nil {
+		return "", fmt.Errorf("Error parsing token - %w", err)
+	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		fmt.Println(claims["foo"], claims["nbf"])
+		userId = claims["sub"].(string)
 	} else {
-		fmt.Println(err)
+		fmt.Println("Invalid signature")
+		err = fmt.Errorf("Signature is not valid")
 	}
 
-	if err != nil {
-		return fmt.Errorf("Invalid token - %w", err)
-	}
-
-	return nil
+	return
 }

@@ -2,7 +2,9 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/kot-zakhar/golang_pet/internal/config"
 	"github.com/kot-zakhar/golang_pet/internal/model"
@@ -11,11 +13,12 @@ import (
 
 type IAuthService interface {
 	SignIn(context context.Context, login, password, fingerprint, userAgent string) (accessToken string, session model.UserSession, err error)
-	SignOut(context context.Context, login string) error
+	SignOut(context context.Context, userId int, refreshToken string) error
 	RefreshTokens(context context.Context, oldRefreshToken string) (accessToken, newRefreshToken string, err error)
 }
 
 const defaultApiBaseRoute = "/auth"
+const cookieName = "RefreshToken"
 
 type AuthHandler struct {
 	authService IAuthService
@@ -57,8 +60,8 @@ func (handler *AuthHandler) SignIn(c echo.Context) error {
 	}
 
 	cookie := http.Cookie{
-		Name:     "refreshToken",
-		Value:    session.RefreshToken,
+		Name:     cookieName,
+		Value:    session.RefreshToken.String(),
 		Domain:   handler.apiDomain,
 		Path:     handler.apiAuthPath,
 		HttpOnly: true,
@@ -72,12 +75,32 @@ func (handler *AuthHandler) SignIn(c echo.Context) error {
 		RefreshToken string `json:"refreshToken"`
 	}{
 		accessToken,
-		session.RefreshToken,
+		session.RefreshToken.String(),
 	})
 }
 
 func (handler *AuthHandler) SignOut(c echo.Context) error {
-	return echo.ErrNotImplemented
+	userIdString, ok := c.Get("userId").(string)
+	if !ok {
+		return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("User not recognized - %s", userIdString))
+	}
+	userId, err := strconv.Atoi(userIdString)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("User not recognized - %s", userIdString))
+	}
+
+	refreshTokenCookie, err := c.Request().Cookie(cookieName)
+
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Refresh token should be provided")
+	}
+
+	err = handler.authService.SignOut(c.Request().Context(), userId, refreshTokenCookie.Value)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("AuthHandler.SignOut - %w", err))
+	}
+
+	return c.NoContent(http.StatusOK)
 }
 
 func (handler *AuthHandler) RefreshTokens(c echo.Context) error {

@@ -89,7 +89,7 @@ func (repo *UserRepository) GetByLogin(context context.Context, login string) (u
 	}
 }
 
-func (repo *UserRepository) Insert(context context.Context, user model.User) error {
+func (repo *UserRepository) Insert(context context.Context, user model.User) (model.User, error) {
 	query := `
 		INSERT INTO users
 		(name, login, email, passwordHash, salt)
@@ -104,9 +104,9 @@ func (repo *UserRepository) Insert(context context.Context, user model.User) err
 	).Scan(&user.Id)
 
 	if err != nil {
-		return fmt.Errorf("UserRepository:Insert:row.Scan - %w", err)
+		return user, fmt.Errorf("UserRepository:Insert:row.Scan - %w", err)
 	} else {
-		return nil
+		return user, nil
 	}
 }
 
@@ -149,5 +149,4 @@ func (repo *UserRepository) Delete(context context.Context, id uint64) error {
 	}
 
 	return nil
-
 }

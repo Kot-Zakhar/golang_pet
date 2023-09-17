@@ -3,8 +3,6 @@ package service
 import (
 	"crypto/rand"
 	"crypto/sha512"
-	"encoding/hex"
-	"fmt"
 
 	"github.com/kot-zakhar/golang_pet/internal/config"
 )
@@ -34,9 +32,6 @@ func (service *PasswordService) HashPassword(password string) (hash, salt []byte
 func (service *PasswordService) DoPasswordsMatch(currPassword string, hashedPassword, salt []byte) bool {
 	pepper := service.getPepper()
 	currPasswordHash := service.hashPasswordWithSaltAndPepper(currPassword, salt, pepper)
-
-	fmt.Println("hashed password: %s", hex.EncodeToString(hashedPassword))
-	fmt.Println("current password hash: %s", hex.EncodeToString(currPasswordHash))
 
 	return string(hashedPassword) == string(currPasswordHash)
 }

@@ -10,7 +10,7 @@ import (
 type IUserRepository interface {
 	GetAll(context.Context) ([]model.User, error)
 	GetById(context.Context, uint64) (model.User, error)
-	Insert(context.Context, model.User) error
+	Insert(context.Context, model.User) (model.User, error)
 	Update(context.Context, uint64, model.User) error
 	Delete(context.Context, uint64) error
 }
@@ -65,7 +65,7 @@ func (service *UserService) RegisterUser(context context.Context, registrationIn
 		Email:        registrationInfo.Email,
 	}
 
-	err := service.userRepo.Insert(context, user)
+	user, err := service.userRepo.Insert(context, user)
 
 	if err != nil {
 		return fmt.Errorf("UserService:RegisterUser:service.userRepo.Insert - %w", err)

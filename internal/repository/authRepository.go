@@ -21,13 +21,12 @@ func NewAuthRepository(db *pgxpool.Pool) AuthRepository {
 func (repo *AuthRepository) InsertSession(context context.Context, session model.UserSession) (newSession model.UserSession, err error) {
 	query := `
 		INSERT INTO userSessions
-		(userId, refreshToken, userAgent, fingerprint, expiresAt, createdAt)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		(userId, userAgent, fingerprint, expiresAt, createdAt)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, userId, refreshToken, userAgent, fingerprint, expiresAt, createdAt`
 
 	err = repo.db.QueryRow(context, query,
 		session.UserId,
-		session.RefreshToken,
 		session.UserAgent,
 		session.Fingerprint,
 		session.ExpiresAt,
@@ -47,4 +46,18 @@ func (repo *AuthRepository) InsertSession(context context.Context, session model
 	}
 
 	return newSession, nil
+}
+
+func (repo *AuthRepository) DeleteSession(context context.Context, userId int, refreshToken string) error {
+	query := `
+		DELETE FROM userSessions
+		WHERE userId = $1 and refreshToken = $2`
+
+	_, err := repo.db.Exec(context, query, userId, refreshToken)
+
+	if err != nil {
+		return fmt.Errorf("AuthRepository:Delete:db.Exec - %w", err)
+	}
+
+	return nil
 }

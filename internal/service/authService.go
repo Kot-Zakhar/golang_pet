@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/kot-zakhar/golang_pet/internal/config"
 	"github.com/kot-zakhar/golang_pet/internal/model"
 )
@@ -18,6 +17,7 @@ type ILoginUserRepository interface {
 
 type IAuthRepository interface {
 	InsertSession(context.Context, model.UserSession) (model.UserSession, error)
+	DeleteSession(context.Context, int, string) error
 }
 
 type IPasswordCheckerService interface {
@@ -26,7 +26,6 @@ type IPasswordCheckerService interface {
 
 type IJwtService interface {
 	CreateToken(user model.User, session model.UserSession) (string, error)
-	ValidateToken(tokenString string) error
 }
 
 type AuthService struct {
@@ -71,12 +70,11 @@ func (service *AuthService) SignIn(context context.Context,
 	// TODO: remove existing sessions if more than 5 open sessions exist
 
 	session = model.UserSession{
-		UserId:       user.Id,
-		UserAgent:    userAgent,
-		RefreshToken: uuid.New().String(),
-		Fingerprint:  fingerprint,
-		CreatedAt:    time.Now(),
-		ExpiresAt:    time.Now().Add(RefreshTokenAge),
+		UserId:      user.Id,
+		UserAgent:   userAgent,
+		Fingerprint: fingerprint,
+		CreatedAt:   time.Now(),
+		ExpiresAt:   time.Now().Add(RefreshTokenAge),
 	}
 
 	session, err = service.authRepository.InsertSession(context, session)
@@ -94,8 +92,14 @@ func (service *AuthService) SignIn(context context.Context,
 	return
 }
 
-func (service *AuthService) SignOut(context context.Context, login string) error {
-	return nil
+func (service *AuthService) SignOut(context context.Context, userId int, refreshToken string) error {
+	err := service.authRepository.DeleteSession(context, userId, refreshToken)
+
+	if err != nil {
+		err = fmt.Errorf("AuthService:SignOut.DeleteSession - %w", err)
+	}
+
+	return err
 }
 
 func (service *AuthService) RefreshTokens(context context.Context, oldRefreshToken string) (accessToken, newRefreshToken string, err error) {
