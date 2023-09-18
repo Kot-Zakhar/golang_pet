@@ -23,6 +23,8 @@ func NewAuthMiddleware(config *config.AppConfig, jwtValidator IJwtValidatorServi
 
 			token := authHeader[1]
 			userId, err := jwtValidator.ValidateAndGetUserId(token)
+
+			// TODO: if token is outdated - redirect to refresh-token endpoint with returnUrl encoded in url
 			if err != nil {
 				return echo.NewHTTPError(http.StatusUnauthorized, fmt.Errorf("Unauthorized - %w", err))
 			}

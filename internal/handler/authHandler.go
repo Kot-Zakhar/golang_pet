@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/kot-zakhar/golang_pet/internal/config"
 	"github.com/kot-zakhar/golang_pet/internal/model"
@@ -13,8 +12,8 @@ import (
 
 type IAuthService interface {
 	SignIn(context context.Context, login, password, fingerprint, userAgent string) (accessToken string, session model.UserSession, err error)
-	SignOut(context context.Context, userId int, refreshToken string) error
-	RefreshTokens(context context.Context, oldRefreshToken string) (accessToken, newRefreshToken string, err error)
+	SignOut(context context.Context, refreshToken string) error
+	RefreshTokens(context context.Context, refreshToken string, fingerprint string) (accessToken string, session model.UserSession, err error)
 }
 
 const defaultApiBaseRoute = "/auth"
@@ -80,22 +79,13 @@ func (handler *AuthHandler) SignIn(c echo.Context) error {
 }
 
 func (handler *AuthHandler) SignOut(c echo.Context) error {
-	userIdString, ok := c.Get("userId").(string)
-	if !ok {
-		return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("User not recognized - %s", userIdString))
-	}
-	userId, err := strconv.Atoi(userIdString)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("User not recognized - %s", userIdString))
-	}
-
 	refreshTokenCookie, err := c.Request().Cookie(cookieName)
 
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Refresh token should be provided")
 	}
 
-	err = handler.authService.SignOut(c.Request().Context(), userId, refreshTokenCookie.Value)
+	err = handler.authService.SignOut(c.Request().Context(), refreshTokenCookie.Value)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("AuthHandler.SignOut - %w", err))
 	}
@@ -104,5 +94,46 @@ func (handler *AuthHandler) SignOut(c echo.Context) error {
 }
 
 func (handler *AuthHandler) RefreshTokens(c echo.Context) error {
-	return echo.ErrNotImplemented
+	var refreshInfo struct {
+		Fingerprint string `json:"fingerprint" validate:"required"`
+	}
+
+	if err := c.Bind(&refreshInfo); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Body is required - %w", err)
+	}
+
+	if err := c.Validate(&refreshInfo); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	refreshTokenCookie, err := c.Request().Cookie(cookieName)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Refresh token should be provided")
+	}
+
+	accessToken, session, err := handler.authService.RefreshTokens(c.Request().Context(),
+		refreshTokenCookie.Value, refreshInfo.Fingerprint)
+
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	cookie := http.Cookie{
+		Name:     cookieName,
+		Value:    session.RefreshToken.String(),
+		Domain:   handler.apiDomain,
+		Path:     handler.apiAuthPath,
+		HttpOnly: true,
+		MaxAge:   int(session.ExpiresAt.Sub(session.CreatedAt).Seconds()),
+	}
+
+	c.SetCookie(&cookie)
+
+	return c.JSON(http.StatusOK, struct {
+		AccessToken  string `json:"accessToken"`
+		RefreshToken string `json:"refreshToken"`
+	}{
+		accessToken,
+		session.RefreshToken.String(),
+	})
 }

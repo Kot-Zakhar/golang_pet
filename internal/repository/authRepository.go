@@ -48,16 +48,39 @@ func (repo *AuthRepository) InsertSession(context context.Context, session model
 	return newSession, nil
 }
 
-func (repo *AuthRepository) DeleteSession(context context.Context, userId int, refreshToken string) error {
+func (repo *AuthRepository) DeleteSession(context context.Context, refreshToken string) error {
 	query := `
 		DELETE FROM userSessions
-		WHERE userId = $1 and refreshToken = $2`
+		WHERE refreshToken = $1`
 
-	_, err := repo.db.Exec(context, query, userId, refreshToken)
+	_, err := repo.db.Exec(context, query, refreshToken)
 
 	if err != nil {
-		return fmt.Errorf("AuthRepository:Delete:db.Exec - %w", err)
+		return fmt.Errorf("AuthRepository:DeleteSession - %w", err)
 	}
 
 	return nil
+}
+
+func (repo *AuthRepository) GetAndDeleteSession(context context.Context, refreshToken string) (session model.UserSession, err error) {
+	query := `
+		DELETE FROM userSessions
+		WHERE refreshToken = $1
+		RETURNING id, userId, refreshToken, userAgent, fingerprint, expiresAt, createdAt`
+
+	err = repo.db.QueryRow(context, query, refreshToken).Scan(
+		&session.Id,
+		&session.UserId,
+		&session.RefreshToken,
+		&session.UserAgent,
+		&session.Fingerprint,
+		&session.ExpiresAt,
+		&session.CreatedAt,
+	)
+
+	if err != nil {
+		return session, fmt.Errorf("AuthRepository:GetAndDeleteSession - %w", err)
+	}
+
+	return session, nil
 }

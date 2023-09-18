@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/kot-zakhar/golang_pet/internal/config"
@@ -17,7 +18,8 @@ type ILoginUserRepository interface {
 
 type IAuthRepository interface {
 	InsertSession(context.Context, model.UserSession) (model.UserSession, error)
-	DeleteSession(context.Context, int, string) error
+	DeleteSession(context.Context, string) error
+	GetAndDeleteSession(context.Context, string) (model.UserSession, error)
 }
 
 type IPasswordCheckerService interface {
@@ -25,7 +27,7 @@ type IPasswordCheckerService interface {
 }
 
 type IJwtService interface {
-	CreateToken(user model.User, session model.UserSession) (string, error)
+	CreateToken(userId string, session model.UserSession) (string, error)
 }
 
 type AuthService struct {
@@ -83,7 +85,7 @@ func (service *AuthService) SignIn(context context.Context,
 		return
 	}
 
-	accessToken, err = service.jwtService.CreateToken(user, session)
+	accessToken, err = service.jwtService.CreateToken(strconv.Itoa(user.Id), session)
 	if err != nil {
 		err = fmt.Errorf("AuthService:SignIn.CreateToken - %w", err)
 		return
@@ -92,8 +94,8 @@ func (service *AuthService) SignIn(context context.Context,
 	return
 }
 
-func (service *AuthService) SignOut(context context.Context, userId int, refreshToken string) error {
-	err := service.authRepository.DeleteSession(context, userId, refreshToken)
+func (service *AuthService) SignOut(context context.Context, refreshToken string) error {
+	err := service.authRepository.DeleteSession(context, refreshToken)
 
 	if err != nil {
 		err = fmt.Errorf("AuthService:SignOut.DeleteSession - %w", err)
@@ -102,6 +104,42 @@ func (service *AuthService) SignOut(context context.Context, userId int, refresh
 	return err
 }
 
-func (service *AuthService) RefreshTokens(context context.Context, oldRefreshToken string) (accessToken, newRefreshToken string, err error) {
-	return "", "", nil
+func (service *AuthService) RefreshTokens(context context.Context,
+	refreshToken string, fingerprint string,
+) (accessToken string, session model.UserSession, err error) {
+	oldSession, err := service.authRepository.GetAndDeleteSession(context, refreshToken)
+	if err != nil {
+		err = fmt.Errorf("AuthService:RefreshTokens.GetAndDeleteSession - %w", err)
+		return
+	}
+
+	if oldSession.ExpiresAt.Compare(time.Now()) < 0 {
+		err = fmt.Errorf("AuthService:RefreshTokens - token is expired")
+		return
+	}
+
+	if oldSession.Fingerprint != fingerprint {
+		err = fmt.Errorf("AuthService:RefreshTokens - fingerprint was not matched")
+		return
+	}
+
+	session = model.UserSession{
+		UserId:      oldSession.UserId,
+		UserAgent:   oldSession.UserAgent,
+		Fingerprint: fingerprint,
+		CreatedAt:   time.Now(),
+		ExpiresAt:   time.Now().Add(RefreshTokenAge),
+	}
+
+	session, err = service.authRepository.InsertSession(context, session)
+	if err != nil {
+		err = fmt.Errorf("AuthService:SignIn.InsertSession - %w", err)
+		return
+	}
+
+	accessToken, err = service.jwtService.CreateToken(strconv.Itoa(oldSession.UserId), session)
+	if err != nil {
+		err = fmt.Errorf("AuthService:SignIn.CreateToken - %w", err)
+	}
+	return
 }

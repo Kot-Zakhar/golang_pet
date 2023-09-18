@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -21,9 +20,9 @@ func NewJwtService(config *config.AppConfig) JwtService {
 	return JwtService{config}
 }
 
-func (service *JwtService) CreateToken(user model.User, session model.UserSession) (string, error) {
+func (service *JwtService) CreateToken(userId string, session model.UserSession) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		Subject:   strconv.Itoa(user.Id),
+		Subject:   userId,
 		Issuer:    service.config.Domain,
 		Audience:  session.Fingerprint,
 		IssuedAt:  time.Now().Unix(),

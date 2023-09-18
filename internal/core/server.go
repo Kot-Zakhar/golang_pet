@@ -43,7 +43,7 @@ func SetUpServer(adress string) {
 
 	e.POST(authBaseRoute+"/sign-in", authHandler.SignIn)
 	e.POST(authBaseRoute+"/sign-out", authHandler.SignOut, DI.AuthMiddleware)
-	e.POST(authBaseRoute+"/refresh-tokens", authHandler.RefreshTokens, DI.AuthMiddleware)
+	e.POST(authBaseRoute+"/refresh-tokens", authHandler.RefreshTokens) // Q - do we need AuthMiddleware here? Maybe some kind of RefreshTokens(allowExpired:true)
 
 	e.Logger.Fatal(e.Start(adress))
 }
